@@ -1,0 +1,9 @@
+{
+    "name": "my_cli_app",
+    "authors": "authors",
+    "email": "author_email",
+    "description": "A Python CLI tool template",
+    "version": "0.1.0",
+    "cli_framework": ["typer", "click"],
+    "db_framework": ["sqlite", "sqlalchemy"]
+  }

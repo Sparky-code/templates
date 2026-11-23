@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.4.0
       - run: uv sync --locked
       - run: uv run ruff check
       - run: uv run ruff format --check
@@ -29,7 +29,7 @@ jobs:
         shape: [ts-library, ts-cli, react-web, python-cli, python-service]
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.4.0
       - uses: actions/setup-node@v7
         with:
           node-version: 24

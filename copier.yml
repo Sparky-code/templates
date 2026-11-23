@@ -1,0 +1,103 @@
+# Sparky-code/templates — Copier templates for every project shape.
+#
+# Each project gets two layers from this one repo:
+#   1. the baseline (layer=baseline): hooks, CI, docs, env, version pin
+#   2. the shape code (layer=shape): src, tests, package/tool config
+# Each layer keeps its own answers file, so `copier update -a <file>` updates
+# them independently. bin/new-project runs both for you.
+
+_min_copier_version: "9.10"
+_subdirectory: "{{ 'baseline' if layer == 'baseline' else shape }}"
+_answers_file: ".copier-answers.{{ layer }}.yml"
+_exclude:
+  - "copier.yml"
+  - ".git"
+  - "__pycache__"
+  - ".DS_Store"
+
+layer:
+  type: str
+  help: Which layer to apply
+  choices:
+    Baseline (every project): baseline
+    Shape code: shape
+
+shape:
+  type: str
+  help: Project shape
+  choices:
+    TypeScript library: ts-library
+    TypeScript CLI or scheduled job: ts-cli
+    Python CLI or scheduled job: python-cli
+    Python service (FastAPI + Postgres): python-service
+    React web app (Vite, optional Hono API): react-web
+    Expo app (start with create-expo-app, baseline only): expo
+    Next.js app (start with create-next-app, baseline only): next
+    Other (baseline only): other
+  validator: >-
+    {% if layer == 'shape' and shape in ['expo', 'next', 'other'] %}
+    "{{ shape }}" has no shape template: start from the official generator and apply only the baseline.
+    {% endif %}
+
+project_name:
+  type: str
+  help: Repository and folder name (lowercase, digits, hyphens)
+  validator: >-
+    {% if not (project_name | regex_search('^[a-z][a-z0-9]*(-[a-z0-9]+)*$')) %}
+    Use a lowercase slug such as "my-tool".
+    {% endif %}
+
+package_name:
+  type: str
+  help: Python import name
+  default: "{{ project_name | replace('-', '_') }}"
+  when: "{{ shape in ['python-cli', 'python-service'] }}"
+
+description:
+  type: str
+  help: One-line description
+  default: ""
+
+author:
+  type: str
+  help: Author name for LICENSE and package metadata (no email)
+  default: ""
+
+license:
+  type: str
+  help: License
+  choices:
+    MIT (public-bound code): MIT
+    None (private, all rights reserved): UNLICENSED
+  default: "{{ 'MIT' if shape == 'ts-library' else 'UNLICENSED' }}"
+
+language:
+  type: str
+  help: Main language (drives hooks and CI)
+  choices: [ts, python, none]
+  default: "{{ 'python' if shape in ['python-cli', 'python-service'] else ('none' if shape == 'other' else 'ts') }}"
+  when: "{{ shape == 'other' }}"
+
+has_ui:
+  type: bool
+  help: Does it have a user interface (adds the shared design tokens)?
+  default: "{{ shape in ['react-web', 'expo', 'next'] }}"
+  when: "{{ shape == 'other' }}"
+
+uses_claude:
+  type: bool
+  help: Will it call Claude (adds the Claude CLI wrapper)?
+  default: false
+  when: "{{ shape in ['ts-cli', 'python-cli'] }}"
+
+with_api:
+  type: bool
+  help: Include a Hono API (src/server) with a typed client?
+  default: true
+  when: "{{ shape == 'react-web' }}"
+
+is_job:
+  type: bool
+  help: Is it a scheduled job (adds the run lock, launchd plist and failure alerts)?
+  default: true
+  when: "{{ shape in ['ts-cli', 'python-cli'] }}"

@@ -1,0 +1,111 @@
+# {{ project_name }}
+
+{{ description or 'What this is, in one sentence.' }}
+
+## Commands
+
+{%- if language == 'ts' %}
+
+- Install: `pnpm install`
+- Test: `pnpm run test` · Typecheck: `pnpm run typecheck` · Lint/format: `pnpm run lint` / `pnpm run format`
+{%- if shape == 'ts-library' %}
+- Build: `pnpm run build` · Vendor into an app: `pnpm run vendor -- <app>/vendor/{{ project_name }}`
+{%- elif shape == 'ts-cli' %}
+- Run: `pnpm start run --dry-run` (applies pending migrations first) · New migration: `pnpm run db:migrate`
+{%- elif shape == 'react-web' %}
+- Dev: `pnpm dev` · Build: `pnpm run build`{{ ' · Serve: `pnpm start`' if with_api }}
+{%- elif shape == 'expo' %}
+- Dev: `pnpm expo start` · Token drift check: `pnpm run tokens:check`
+{%- elif shape == 'next' %}
+- Dev: `pnpm dev` · Build: `pnpm run build`
+{%- endif %}
+{%- elif language == 'python' %}
+
+- Install: `uv sync`
+- Test: `uv run pytest` (network tests: `-m live`) · Types: `uv run mypy` · Lint/format: `uv run ruff check` / `uv run ruff format`
+{%- if shape == 'python-cli' %}
+- Run: `uv run --env-file .env {{ project_name }} run --dry-run`
+{%- elif shape == 'python-service' %}
+- Run: `docker compose up -d db`, then `uv run --env-file .env uvicorn {{ package_name }}.main:app --reload`
+- Migrations: `uv run --env-file .env alembic revision --autogenerate -m "..."`, then `alembic upgrade head`
+{%- endif %}
+{%- endif %}
+
+## Layout
+
+{%- if shape == 'ts-library' %}
+
+- `src/` library source; one file per subpath export in `package.json`
+- `test/` Vitest tests, one per module
+- `scripts/vendor.ts` copies the build into an app with a `VENDORED.md`
+{%- elif shape == 'ts-cli' %}
+
+- `src/cli.ts` commands (commander) · `src/job.ts` run lock, run record, failure alert
+- `src/db.ts` Prisma client · `prisma/` schema and migrations · `data/` local SQLite (git-ignored)
+{%- if uses_claude %}
+- `src/claude.ts` the only place that calls Claude (via the Claude CLI)
+{%- endif %}
+- `ops/launchd/` schedule
+{%- elif shape == 'python-cli' %}
+
+- `src/{{ package_name }}/cli.py` commands (Typer) · `job.py` run lock, run record, failure alert
+- `db.py` SQLite connection and the numbered migration list · `data/` local SQLite (git-ignored)
+{%- if uses_claude %}
+- `claude.py` the only place that calls Claude (via the Claude CLI)
+{%- endif %}
+- `tests/` pytest · `ops/launchd/` schedule
+{%- elif shape == 'python-service' %}
+
+- `src/{{ package_name }}/main.py` FastAPI app · `settings.py` env settings · `db.py` engine and sessions · `models.py` tables
+- `migrations/` Alembic · `tests/` pytest · `compose.yaml` local Postgres
+{%- if uses_claude %}
+- `claude.py` the only place that calls Claude (via the Claude CLI)
+{%- endif %}
+{%- elif shape == 'react-web' %}
+
+- `src/client/` React app · `src/components/ui/` shadcn components (edit in place) · `src/styles/tokens.css` design tokens (vendored)
+{%- if with_api %}
+- `src/server/` Hono API · `src/shared/` zod schemas used by both sides
+{%- endif %}
+- `test/` Vitest
+{%- elif shape in ['expo', 'next'] %}
+
+- Read `AGENTS.md` first: the framework's own rules for this version, written by its generator.
+- `design/tokens.css` design tokens (vendored; import it in the global stylesheet{{ ', mirrored for React Native in `design/tokens.ts`' if shape == 'expo' }})
+{%- else %}
+
+Describe the main folders here.
+{%- endif %}
+
+## Rules
+
+- Commits: `type(scope)!: Imperative subject` (feat, fix, refactor, docs, test, chore, build, ci), at most 72 characters, optional body saying why. No Co-Authored-By trailers or session IDs. The commit-msg hook enforces this.
+- Settings come from environment variables only (`.env`, never committed; keep `.env.example` current).
+{%- if language == 'ts' %}
+- TypeScript is strict ESM. Relative imports use the `.ts` extension; no enums or namespaces (Node runs the source directly).
+{%- endif %}
+{%- if language == 'python' %}
+- New dependencies with `uv add` (dev tools: `uv add --dev`). Keep `uv.lock` committed.
+{%- endif %}
+{%- if shape in ['ts-cli', 'python-cli', 'python-service'] %}
+- Schema changes go through a new numbered migration, never ad-hoc changes.
+{%- endif %}
+{%- if is_job and shape in ['ts-cli', 'python-cli'] %}
+- Jobs are safe to re-run, hold the run lock, honour `--dry-run` and the per-run cap for anything that posts or sends, record each run, and exit non-zero on failure.
+{%- endif %}
+{%- if uses_claude %}
+- Claude is only called through the Claude CLI wrapper, never an API SDK.
+{%- endif %}
+{%- if has_ui %}
+- Never hard-code colours, spacing, radii, shadows or font sizes: use the design tokens. Check light and dark themes.
+{%- endif %}
+{%- if shape in ['react-web', 'next'] %}
+- Validate every API input and the environment with zod. Use a maintained auth library, never hand-rolled sessions.
+{%- endif %}
+{%- if shape in ['react-web', 'next', 'expo', 'other'] %}
+
+## Stack choice
+
+Record what this project uses at each layer and why (framework, data, auth,
+hosting), so the next session doesn't re-decide it.
+{%- endif %}

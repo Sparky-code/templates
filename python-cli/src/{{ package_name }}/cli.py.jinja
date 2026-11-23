@@ -1,0 +1,64 @@
+"""Command line: `{{ project_name }} run` and `{{ project_name }} status`."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Annotated
+
+import typer
+
+from . import db
+from .job import JobContext, ntfy_notifier, run_job
+
+HELP = {{ (description or "Describe what this tool does.") | tojson }}
+
+app = typer.Typer(help=HELP, no_args_is_help=True)
+
+
+def work(ctx: JobContext) -> str:
+    # Replace with the real work: fetch, diff against state in the database,
+    # and act on at most ctx.max_items new items; skip side effects when
+    # ctx.dry_run is set.
+    verb = "would process" if ctx.dry_run else "processing"
+    ctx.log(f"{verb} up to {ctx.max_items} items")
+    return "nothing to do yet"
+
+
+@app.command()
+def run(
+    dry_run: Annotated[bool, typer.Option(help="Show what would happen; change nothing.")] = False,
+    max_items: Annotated[
+        int, typer.Option("--max", min=1, help="Most items to post or send in this run.")
+    ] = 20,
+) -> None:
+    """Do one run of the job."""
+    conn = db.connect()
+    try:
+        ok = run_job(
+            "run",
+            work,
+            conn=conn,
+            lock_path=Path("data/run.lock"),
+            dry_run=dry_run,
+            max_items=max_items,
+            notify=ntfy_notifier(),
+            log=typer.echo,
+        )
+    finally:
+        conn.close()
+    if not ok:
+        raise typer.Exit(1)
+
+
+@app.command()
+def status(limit: int = 10) -> None:
+    """Show recent runs."""
+    conn = db.connect()
+    try:
+        rows = conn.execute("SELECT * FROM runs ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+    finally:
+        conn.close()
+    for r in rows:
+        state = "running" if r["ok"] is None else ("ok" if r["ok"] else "FAILED")
+        dry = " (dry run)" if r["dry_run"] else ""
+        typer.echo(f"{r['started_at']}  {r['job']}  {state}{dry}  {r['detail'] or ''}")

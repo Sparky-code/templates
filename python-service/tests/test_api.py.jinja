@@ -1,0 +1,36 @@
+from __future__ import annotations
+
+import os
+
+import pytest
+from fastapi.testclient import TestClient
+
+from {{ package_name }}.main import app
+from {{ package_name }}.settings import Settings
+
+client = TestClient(app)
+
+
+def test_health() -> None:
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+def test_rejects_an_empty_item_name() -> None:
+    assert client.post("/items", json={"name": ""}).status_code == 422
+
+
+def test_settings_read_the_prefixed_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("{{ package_name | upper }}_DATABASE_URL", "postgresql+asyncpg://x/y")
+    assert Settings().database_url == "postgresql+asyncpg://x/y"
+
+
+@pytest.mark.live
+def test_items_round_trip_against_postgres() -> None:
+    """Needs `docker compose up -d db` and `alembic upgrade head`."""
+    assert os.environ.get("{{ package_name | upper }}_DATABASE_URL"), "set the database URL"
+    with TestClient(app) as live:
+        created = live.post("/items", json={"name": "first"})
+        assert created.status_code == 201
+        assert any(i["name"] == "first" for i in live.get("/items").json())

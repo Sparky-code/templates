@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  fast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      - run: uv sync --locked
+      - run: uv run ruff check
+      - run: uv run ruff format --check
+      - run: shellcheck bin/new-project baseline/.lefthook/commit-msg/check-message.sh shared/*.sh
+      - run: uv run pytest
+
+  shapes:
+    needs: fast
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shape: [ts-library, ts-cli, react-web, python-cli, python-service]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: corepack enable pnpm
+      - run: uv sync --locked
+      - name: Generate and check ${{ matrix.shape }}
+        run: |
+          git config --global user.name ci
+          git config --global user.email ci@example.invalid
+          uv run pytest -m slow -k "${{ matrix.shape }} and not hooks"

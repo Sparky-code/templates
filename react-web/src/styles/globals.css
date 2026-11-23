@@ -1,0 +1,81 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "./tokens.css";
+
+/*
+ * Map the design tokens (tokens.css) onto Tailwind's theme and the role names
+ * shadcn/ui components expect. Components use roles (bg-background,
+ * text-muted-foreground, rounded-md, shadow-2), never raw values; the roles
+ * repaint for dark mode by themselves.
+ */
+@theme inline {
+  --font-sans: var(--font-sans);
+
+  --color-background: var(--background);
+  --color-foreground: var(--text);
+  --color-surface: var(--surface);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--text);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--text);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--on-primary);
+  --color-secondary: var(--surface-variant);
+  --color-secondary-foreground: var(--text);
+  --color-muted: var(--surface-variant);
+  --color-muted-foreground: var(--text-muted);
+  --color-accent: var(--surface-variant);
+  --color-accent-foreground: var(--text);
+  --color-destructive: var(--danger);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--primary);
+
+  --spacing-0: var(--space-0);
+  --spacing-1: var(--space-1);
+  --spacing-2: var(--space-2);
+  --spacing-3: var(--space-3);
+  --spacing-4: var(--space-4);
+  --spacing-5: var(--space-5);
+  --spacing-6: var(--space-6);
+  --spacing-7: var(--space-7);
+  --spacing-8: var(--space-8);
+  --spacing-9: var(--space-9);
+
+  --radius-sm: var(--rounded-sm);
+  --radius-md: var(--rounded-md);
+  --radius-lg: var(--rounded-lg);
+  --radius-full: var(--rounded-full);
+
+  --shadow-1: var(--elevation-1);
+  --shadow-2: var(--elevation-2);
+  --shadow-3: var(--elevation-3);
+  --shadow-4: var(--elevation-4);
+  --shadow-5: var(--elevation-5);
+
+  --text-display: var(--type-display-large-size);
+  --text-display--line-height: var(--type-display-large-line);
+  --text-headline: var(--type-headline-large-size);
+  --text-headline--line-height: var(--type-headline-large-line);
+  --text-title: var(--type-title-large-size);
+  --text-title--line-height: var(--type-title-large-line);
+  --text-body: var(--type-body-large-size);
+  --text-body--line-height: var(--type-body-large-line);
+  --text-label: var(--type-label-large-size);
+  --text-label--line-height: var(--type-label-large-line);
+
+  --ease-standard: var(--easing-standard);
+  --ease-emphasized: var(--easing-emphasized);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans text-body antialiased;
+  }
+}

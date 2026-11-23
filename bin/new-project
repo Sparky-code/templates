@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+# Create a project from Sparky-code/templates: baseline + shape, then install.
+#
+#   bin/new-project <shape> <directory> [extra copier args...]
+#
+# Shapes with code: ts-library ts-cli python-cli python-service react-web
+# Baseline only:    expo next   (run the official generator first, e.g.
+#                   `pnpm create expo-app my-app`, then this on that folder;
+#                   it adds Biome, test and typecheck scripts too)
+#                   other       (any other project)
+#
+# Extra args go to copier, e.g. --data uses_claude=true --data description="...".
+# TEMPLATES_SRC overrides the template location (default gh:Sparky-code/templates);
+# TEMPLATES_REF picks a tag or commit (default: latest tag).
+# Compatible with bash 3.2 (the macOS default).
+set -euo pipefail
+
+usage() {
+  sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
+  exit 2
+}
+[[ $# -ge 2 ]] || usage
+shape="$1"
+dest="$2"
+shift 2
+
+src="${TEMPLATES_SRC:-gh:Sparky-code/templates}"
+ref_args=()
+if [[ -n "${TEMPLATES_REF:-}" ]]; then ref_args=(--vcs-ref "$TEMPLATES_REF"); fi
+
+case "$shape" in
+  ts-library | ts-cli | python-cli | python-service | react-web) with_shape=1 ;;
+  expo | next | other) with_shape=0 ;;
+  *)
+    echo "unknown shape: $shape" >&2
+    usage
+    ;;
+esac
+
+name="$(basename "$dest")"
+command -v uvx >/dev/null || { echo "needs uv (brew install uv)" >&2; exit 1; }
+
+copier() {
+  uvx copier copy --quiet --defaults ${ref_args[@]+"${ref_args[@]}"} \
+    --data "shape=$shape" --data "project_name=$name" "$@" "$src" "$dest"
+}
+
+framework=0
+case "$shape" in expo | next) framework=1 ;; esac
+if [[ "$framework" == 1 && ! -f "$dest/package.json" ]]; then
+  echo "$dest has no package.json: run the official generator first (see --help)" >&2
+  exit 1
+fi
+
+if [[ "$with_shape" == 1 ]]; then
+  copier --data layer=shape -a .copier-answers.shape.yml "$@"
+fi
+if [[ "$framework" == 1 ]]; then
+  # Keep the generator's .gitignore (extended below); replace its README.
+  copier --data layer=baseline -a .copier-answers.baseline.yml --overwrite --skip .gitignore "$@"
+else
+  copier --data layer=baseline -a .copier-answers.baseline.yml "$@"
+fi
+
+cd "$dest"
+if [[ ! -d .git ]]; then git init --quiet --initial-branch=main; fi
+
+# Framework apps: add what the baseline's hooks and CI expect.
+if [[ "$framework" == 1 ]]; then
+  if ! grep -q 'Sparky-code/templates' .gitignore 2>/dev/null; then
+    printf '\n# Added by the Sparky-code/templates baseline\n.env\n.env.*\n!.env.example\n' >>.gitignore
+  fi
+  if command -v corepack >/dev/null; then corepack enable pnpm >/dev/null 2>&1 || true; fi
+  npm pkg set "packageManager=pnpm@$(pnpm --version)" "engines.node=>=24" \
+    "scripts.format=biome check --write ." "scripts.typecheck=tsc --noEmit"
+  if [[ "$shape" == expo ]]; then
+    # Remove Expo's example screens (they don't pass strict checks); start blank.
+    if [[ -f scripts/reset-project.js ]]; then echo n | node scripts/reset-project.js >/dev/null; fi
+    # Expo generates expo-env.d.ts on first start; commit it so CI can typecheck.
+    printf '/// <reference types="expo/types" />\n' >expo-env.d.ts
+    sed -i.bak '/^expo-env\.d\.ts$/d' .gitignore && rm -f .gitignore.bak
+    pnpm add --save-dev @biomejs/biome @types/node@24 @types/jest eslint@9 eslint-config-expo jest jest-expo
+    if [[ ! -f eslint.config.js ]]; then
+      cat >eslint.config.js <<'JS'
+const { defineConfig } = require('eslint/config');
+const expoConfig = require('eslint-config-expo/flat');
+
+module.exports = defineConfig([expoConfig, { ignores: ['dist/*'] }]);
+JS
+    fi
+    npm pkg set "scripts.lint=biome check . && eslint ." "scripts.test=jest --passWithNoTests" \
+      "scripts.tokens:check=node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON design/check-tokens.ts" \
+      "jest.preset=jest-expo"
+  else
+    pnpm add --save-dev @biomejs/biome vitest
+    npm pkg set "scripts.lint=biome check . && eslint ." "scripts.test=vitest run --passWithNoTests" \
+      "scripts.typecheck=next typegen && tsc --noEmit"
+  fi
+  pnpm exec biome check --write . >/dev/null 2>&1 || true
+fi
+
+if [[ -f package.json ]]; then
+  if command -v corepack >/dev/null; then corepack enable pnpm >/dev/null 2>&1 || true; fi
+  pnpm install
+elif [[ -f pyproject.toml ]]; then
+  uv sync
+fi
+
+if command -v lefthook >/dev/null; then
+  lefthook install
+else
+  echo "lefthook not found (brew install lefthook); run 'lefthook install' later" >&2
+fi
+
+echo
+echo "Created $dest ($shape). Next: review the files, then commit:"
+echo "  git add -A && git commit -m 'chore: Scaffold from templates'"

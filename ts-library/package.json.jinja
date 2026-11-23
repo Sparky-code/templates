@@ -1,0 +1,40 @@
+{
+  "name": "{{ project_name }}",
+  "version": "0.1.0",
+  "description": {{ description | tojson }},
+  "license": "{{ license }}",
+  "author": {{ author | tojson }},
+  "type": "module",
+  "packageManager": "pnpm@12.23.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./greet": {
+      "types": "./dist/greet.d.ts",
+      "default": "./dist/greet.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "test": "vitest run",
+    "vendor": "node scripts/vendor.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.8",
+    "@types/node": "^24.19.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1"
+  }
+}

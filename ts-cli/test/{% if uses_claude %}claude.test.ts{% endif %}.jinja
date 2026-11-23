@@ -1,0 +1,39 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { askClaude } from '../src/claude.ts';
+import type { Db } from '../src/db.ts';
+import { testDb } from './db.ts';
+
+// A stand-in for the Claude CLI that echoes its arguments and counts calls.
+const fake = fileURLToPath(new URL('./fixtures/fake-claude.sh', import.meta.url));
+let db: Db;
+let dir: string;
+
+beforeEach(async () => {
+  ({ db, dir } = await testDb());
+  process.env.FAKE_CLAUDE_COUNT = join(dir, 'count');
+});
+
+afterEach(async () => {
+  await db.$disconnect();
+});
+
+describe('askClaude', () => {
+  it('passes prompt, model and system prompt to the CLI', async () => {
+    const out = await askClaude('hello', { db, bin: fake, model: 'haiku', system: 'be brief' });
+    expect(out).toBe('-p hello --model haiku --output-format text --append-system-prompt be brief');
+  });
+
+  it('caches by model and prompt', async () => {
+    await askClaude('same', { db, bin: fake });
+    await askClaude('same', { db, bin: fake });
+    await askClaude('same', { db, bin: fake, fresh: true });
+    expect(readFileSync(join(dir, 'count'), 'utf8').trim().split('\n')).toHaveLength(2);
+  });
+
+  it('fails clearly when the CLI fails', async () => {
+    await expect(askClaude('x', { db, bin: '/nonexistent/claude' })).rejects.toThrow();
+  });
+});

@@ -1,0 +1,24 @@
+/// <reference types="vitest/config" />
+import { fileURLToPath } from 'node:url';
+{%- if with_api %}
+import devServer from '@hono/vite-dev-server';
+{%- endif %}
+import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+{%- if with_api %}
+  plugins: [
+    react(),
+    tailwindcss(),
+    // In development the Hono app answers /api/* inside the Vite server.
+    devServer({ entry: 'src/server/app.ts', exclude: [/^(?!\/api(\/|$)).*/] }),
+  ],
+{%- else %}
+  plugins: [react(), tailwindcss()],
+{%- endif %}
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  build: { outDir: 'dist/client' },
+  test: { include: ['test/**/*.test.{ts,tsx}'] },
+});

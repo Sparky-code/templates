@@ -1,0 +1,20 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from {{ package_name }} import db
+
+
+def test_connect_creates_the_file_and_applies_every_migration(tmp_path: Path) -> None:
+    path = tmp_path / "nested" / "app.db"
+    conn = db.connect(path)
+    assert path.exists()
+    (version,) = conn.execute("PRAGMA user_version").fetchone()
+    assert version == len(db.MIGRATIONS)
+
+
+def test_migrate_is_idempotent(tmp_path: Path) -> None:
+    conn = db.connect(tmp_path / "app.db")
+    assert db.migrate(conn) == len(db.MIGRATIONS)
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    assert "runs" in tables

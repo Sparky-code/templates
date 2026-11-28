@@ -1,0 +1,31 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "ts"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// One row per job run: what ran, when, and how it ended.
+model Run {
+  id         Int       @id @default(autoincrement())
+  job        String
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  ok         Boolean?
+  dryRun     Boolean   @default(false)
+  detail     String?
+}
+{%- if uses_claude %}
+
+// Claude CLI responses, keyed by a hash of model + prompt.
+model ClaudeCache {
+  key       String   @id
+  model     String
+  response  String
+  createdAt DateTime @default(now())
+}
+{%- endif %}

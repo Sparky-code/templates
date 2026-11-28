@@ -1,0 +1,38 @@
+{
+  "name": "{{ project_name }}",
+  "version": "0.1.0",
+  "private": true,
+  "description": {{ description | tojson }},
+  "license": "{{ license }}",
+  "type": "module",
+  "packageManager": "pnpm@12.23.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "{{ project_name }}": "./src/cli.ts"
+  },
+  "scripts": {
+    "start": "pnpm run -s db:deploy > /dev/null && node --env-file-if-exists=.env src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "test": "vitest run",
+    "db:generate": "prisma generate",
+    "db:migrate": "node --env-file-if-exists=.env node_modules/prisma/build/index.js migrate dev",
+    "db:deploy": "node --env-file-if-exists=.env node_modules/prisma/build/index.js migrate deploy",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/adapter-libsql": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "commander": "^15.1.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.8",
+    "@types/node": "^24.19.2",
+    "prisma": "^7.10.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1"
+  }
+}

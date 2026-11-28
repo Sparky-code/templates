@@ -1,0 +1,66 @@
+#!/usr/bin/env node
+import { Command, InvalidArgumentError } from 'commander';
+import { openDb } from './db.ts';
+import { ntfyNotifier, runJob } from './job.ts';
+
+const DESCRIPTION = '{{ (description or "Describe what this tool does.") | replace("\\", "\\\\") | replace("'", "\\'") }}';
+
+const program = new Command().name('{{ project_name }}').description(DESCRIPTION);
+
+const positiveInt = (value: string) => {
+  const n = Number.parseInt(value, 10);
+  if (!Number.isInteger(n) || n < 1) throw new InvalidArgumentError('must be a positive integer');
+  return n;
+};
+
+program
+  .command('run')
+  .description('Do one run of the job')
+  .option('--dry-run', 'show what would happen without changing anything', false)
+  .option('--max <n>', 'most items to post or send in this run', positiveInt, 20)
+  .action(async (opts: { dryRun: boolean; max: number }) => {
+    const db = openDb();
+    try {
+      await runJob(
+        'run',
+        async ({ dryRun, max, log }) => {
+          // Replace with the real work. Fetch, diff against state in the
+          // database, and act on at most `max` new items; skip side effects
+          // when `dryRun` is set.
+          log(
+            dryRun ? `dry run: would process up to ${max} items` : `processing up to ${max} items`,
+          );
+          return 'nothing to do yet';
+        },
+        {
+          db,
+          lockPath: 'data/run.lock',
+          dryRun: opts.dryRun,
+          max: opts.max,
+          notify: ntfyNotifier(),
+        },
+      );
+    } finally {
+      await db.$disconnect();
+    }
+  });
+
+program
+  .command('status')
+  .description('Show recent runs')
+  .action(async () => {
+    const db = openDb();
+    try {
+      const runs = await db.run.findMany({ orderBy: { id: 'desc' }, take: 10 });
+      for (const r of runs) {
+        const state = r.ok === null ? 'running' : r.ok ? 'ok' : 'FAILED';
+        console.log(
+          `${r.startedAt.toISOString()}  ${r.job}  ${state}${r.dryRun ? ' (dry run)' : ''}  ${r.detail ?? ''}`,
+        );
+      }
+    } finally {
+      await db.$disconnect();
+    }
+  });
+
+await program.parseAsync();

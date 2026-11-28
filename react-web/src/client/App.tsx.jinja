@@ -1,0 +1,44 @@
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+{%- if with_api %}
+import { api } from './api.ts';
+{%- endif %}
+
+type Theme = 'light' | 'dark';
+
+export function App() {
+  const [theme, setTheme] = useState<Theme | null>(null);
+{%- if with_api %}
+  const [status, setStatus] = useState<string | null>(null);
+
+  async function check() {
+    const res = await api.api.health.$get();
+    setStatus(res.ok ? (await res.json()).status : `error ${res.status}`);
+  }
+{%- endif %}
+
+  // Tokens follow the OS setting; data-theme on <html> overrides it.
+  function toggleTheme() {
+    const current =
+      theme ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const next: Theme = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    setTheme(next);
+  }
+
+  return (
+    <main className="mx-auto flex max-w-2xl flex-col gap-4 p-6">
+      <h1 className="text-headline font-semibold">{{ project_name }}</h1>
+      <p className="text-muted-foreground">{{ (description or 'Replace this with the app.') | e }}</p>
+      <div className="flex items-center gap-3">
+        <Button variant="outline" onClick={toggleTheme}>
+          Toggle theme
+        </Button>
+{%- if with_api %}
+        <Button onClick={check}>Check API</Button>
+        {status && <span role="status">API: {status}</span>}
+{%- endif %}
+      </div>
+    </main>
+  );
+}

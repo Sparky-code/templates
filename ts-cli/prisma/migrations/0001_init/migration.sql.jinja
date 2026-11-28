@@ -1,0 +1,20 @@
+-- CreateTable
+CREATE TABLE "Run" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "job" TEXT NOT NULL,
+    "startedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "finishedAt" DATETIME,
+    "ok" BOOLEAN,
+    "dryRun" BOOLEAN NOT NULL DEFAULT false,
+    "detail" TEXT
+);
+{%- if uses_claude %}
+
+-- CreateTable
+CREATE TABLE "ClaudeCache" (
+    "key" TEXT NOT NULL PRIMARY KEY,
+    "model" TEXT NOT NULL,
+    "response" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+{%- endif %}

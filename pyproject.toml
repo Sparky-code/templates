@@ -1,0 +1,29 @@
+[project]
+name = "templates"
+version = "0.1.0"
+description = "Copier templates for every project shape (tests and tooling for the templates themselves)"
+requires-python = ">=3.14"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "copier>=9.19.1",
+    "pytest>=9.2.0",
+    "ruff>=0.17.6",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+extend-exclude = ["python-cli", "python-service", "shared"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m 'not slow'"
+markers = ["slow: generates a project, installs it and runs its own checks (minutes)"]

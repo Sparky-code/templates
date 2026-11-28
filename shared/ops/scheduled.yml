@@ -1,0 +1,70 @@
+# Scheduled run of {{ project_name }} on GitHub Actions (from Sparky-code/templates).
+# The SQLite state lives on the `state` branch (ops/state.sh): restored before
+# the run, saved after it, even when the run fails, so successful work is
+# never repeated (but never after a failed restore). Only for small state
+# that may be public: anyone who can read the repo can read the branch.
+# Settings: add secrets and variables in the repo settings and map them in `env` below.
+name: Scheduled run
+
+on:
+  schedule:
+    - cron: "0 14 * * *" # daily, 14:00 UTC; GitHub may start it some minutes late
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Show what would happen; change nothing
+        type: boolean
+        default: true
+      max:
+        description: Most items to post or send in this run
+        type: number
+        default: 20
+
+permissions:
+  contents: write # push the state branch
+
+concurrency:
+  group: scheduled-run # one run at a time; never cancel one mid-run
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DB: data/{{ project_name }}.db
+{%- if language == 'python' %}
+      {{ package_name | upper }}_DB: data/{{ project_name }}.db
+{%- else %}
+      DATABASE_URL: file:./data/{{ project_name }}.db
+{%- endif %}
+      NTFY_URL: {% raw %}${{ secrets.NTFY_URL }}{% endraw %}
+      # Add the job's own settings here, e.g.
+      # API_TOKEN: {% raw %}${{ secrets.API_TOKEN }}{% endraw %}
+    steps:
+      - uses: actions/checkout@v7
+{%- if language == 'python' %}
+      - uses: astral-sh/setup-uv@v10.4.0
+      - run: uv sync --locked
+{%- else %}
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+{%- endif %}
+      - name: Restore state
+        id: restore
+        run: ops/state.sh restore "$DB"
+      - name: Run
+        env:
+          DRY_RUN: {% raw %}${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}{% endraw %}
+          MAX: {% raw %}${{ inputs.max || 20 }}{% endraw %}
+        run: |
+          args=(--max "$MAX")
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          {{ run_command }} "${args[@]}"
+      - name: Save state
+        if: {% raw %}${{ !cancelled() && steps.restore.outcome == 'success' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}{% endraw %}
+        run: ops/state.sh save "$DB"

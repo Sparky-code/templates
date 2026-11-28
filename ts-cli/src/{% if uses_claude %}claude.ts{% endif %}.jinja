@@ -1,0 +1,50 @@
+// The only place this project calls Claude: through the Claude CLI
+// (`claude -p`), never an API SDK. Responses are cached in the database by a
+// hash of model + prompt, so re-runs don't repeat calls.
+import { execFile } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { promisify } from 'node:util';
+import type { Db } from './db.ts';
+
+export interface ClaudeOptions {
+  db: Db;
+  model?: string;
+  /** Extra instructions appended to Claude's default system prompt. */
+  system?: string;
+  timeoutMs?: number;
+  /** Binary to run; CLAUDE_BIN overrides the default `claude` on PATH. */
+  bin?: string;
+  /** Skip the cache for this call. */
+  fresh?: boolean;
+}
+
+const run = promisify(execFile);
+
+export async function askClaude(prompt: string, opts: ClaudeOptions): Promise<string> {
+  const model = opts.model ?? process.env.CLAUDE_MODEL ?? 'sonnet';
+  const bin = opts.bin ?? (process.env.CLAUDE_BIN || 'claude');
+  const key = createHash('sha256')
+    .update(`${model}\n${opts.system ?? ''}\n${prompt}`)
+    .digest('hex');
+
+  if (!opts.fresh) {
+    const hit = await opts.db.claudeCache.findUnique({ where: { key } });
+    if (hit) return hit.response;
+  }
+
+  const args = ['-p', prompt, '--model', model, '--output-format', 'text'];
+  if (opts.system) args.push('--append-system-prompt', opts.system);
+  const { stdout } = await run(bin, args, {
+    timeout: opts.timeoutMs ?? 120_000,
+    maxBuffer: 10 * 1024 * 1024,
+  });
+  const response = stdout.trim();
+  if (!response) throw new Error('Claude CLI returned no output');
+
+  await opts.db.claudeCache.upsert({
+    where: { key },
+    create: { key, model, response },
+    update: { response, createdAt: new Date() },
+  });
+  return response;
+}

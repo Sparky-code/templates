@@ -1,0 +1,44 @@
+"""HTTP API."""
+
+from __future__ import annotations
+
+from typing import Annotated
+
+from fastapi import Depends, FastAPI
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from .db import get_session
+from .models import Item
+
+app = FastAPI(title="{{ project_name }}")
+
+Session = Annotated[AsyncSession, Depends(get_session)]
+
+
+class ItemIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+
+
+class ItemOut(ItemIn):
+    id: int
+
+
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.get("/items")
+async def list_items(session: Session) -> list[ItemOut]:
+    rows = await session.scalars(select(Item).order_by(Item.id))
+    return [ItemOut(id=r.id, name=r.name) for r in rows]
+
+
+@app.post("/items", status_code=201)
+async def create_item(body: ItemIn, session: Session) -> ItemOut:
+    item = Item(name=body.name)
+    session.add(item)
+    await session.commit()
+    return ItemOut(id=item.id, name=item.name)

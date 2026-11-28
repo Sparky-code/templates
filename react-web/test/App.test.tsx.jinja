@@ -1,0 +1,13 @@
+// @vitest-environment jsdom
+import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
+import { App } from '../src/client/App.tsx';
+
+afterEach(cleanup);
+
+describe('App', () => {
+  it('renders the heading', () => {
+    render(<App />);
+    expect(screen.getByRole('heading', { name: '{{ project_name }}' })).toBeTruthy();
+  });
+});

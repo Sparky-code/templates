@@ -1,0 +1,4 @@
+# Packages allowed to run install scripts (pnpm blocks all others).
+allowBuilds:
+  prisma: true
+  "@prisma/engines": true

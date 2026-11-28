@@ -1,0 +1,126 @@
+# {{ project_name }}
+
+{{ description or 'One-line description of what this does and who it is for.' }}
+
+## Setup
+
+{%- if language == 'ts' %}
+
+Needs Node 24 (`.nvmrc`), pnpm (`corepack enable`) and lefthook.
+
+```bash
+pnpm install
+lefthook install
+```
+{%- elif language == 'python' %}
+
+Needs [uv](https://docs.astral.sh/uv/) (it installs Python {{ '3.14' }} itself) and lefthook.
+
+```bash
+uv sync
+lefthook install
+```
+{%- else %}
+
+```bash
+lefthook install
+```
+{%- endif %}
+{%- if shape in ['ts-cli', 'python-cli', 'python-service', 'react-web'] %}
+
+Copy `.env.example` to `.env` and fill it in. Settings come only from the
+environment; `.env` is never committed.
+{%- endif %}
+
+## Usage
+{% if shape == 'ts-library' %}
+```ts
+import { greet } from '{{ project_name }}';
+```
+
+Document every export here: what it takes, what it returns, and its edge cases.
+
+Apps use this library as a vendored copy:
+
+```bash
+pnpm run vendor -- ../my-app/vendor/{{ project_name }}
+```
+{%- elif shape == 'ts-cli' %}
+```bash
+pnpm start run --dry-run   # show what a run would do; changes nothing
+pnpm start run             # do it (applies pending migrations first)
+pnpm start status          # recent runs
+```
+{%- elif shape == 'python-cli' %}
+```bash
+uv run --env-file .env {{ project_name }} run --dry-run   # show what a run would do
+uv run --env-file .env {{ project_name }} run             # do it
+uv run --env-file .env {{ project_name }} status          # recent runs
+```
+{%- elif shape == 'python-service' %}
+```bash
+docker compose up -d db
+uv run --env-file .env alembic upgrade head
+uv run --env-file .env uvicorn {{ package_name }}.main:app --reload
+```
+{%- elif shape == 'react-web' %}
+```bash
+pnpm dev      # app{{ ' and API' if with_api }} with hot reload
+pnpm build
+{%- if with_api %}
+pnpm start    # serve the build and the API
+{%- endif %}
+```
+{%- elif shape == 'expo' %}
+```bash
+pnpm expo start
+```
+{%- elif shape == 'next' %}
+```bash
+pnpm dev
+```
+{%- else %}
+Describe how to run it.
+{%- endif %}
+{%- if is_job and shape in ['ts-cli', 'python-cli'] %}
+
+### Schedule
+{% if schedule == 'actions' %}
+`.github/workflows/scheduled.yml` runs the job daily on GitHub Actions (edit
+the cron line to change the time). Each run restores the SQLite database from
+the `state` branch and saves it back afterwards (`ops/state.sh`), so the state
+is as public as the repo. Run it by hand from the Actions tab (Run workflow);
+manual runs are dry runs unless you untick the box. Put settings in the repo's
+Actions secrets and variables and map them in the workflow's `env`. GitHub
+emails you when a run fails, and so does ntfy if the `NTFY_URL` secret is set.
+GitHub pauses schedules in public repos after 60 days without activity; the
+state commits count as activity.
+{%- else %}
+`ops/launchd/install.sh` installs a launchd agent that runs the job daily
+(edit the plist to change the time). Logs go to `~/Library/Logs/{{ project_name }}/`.
+If `NTFY_URL` is set, a failed run sends a push notification.
+{%- endif %}
+{%- endif %}
+
+## Development
+
+{%- if language == 'ts' %}
+
+```bash
+pnpm run test        # tests
+pnpm run typecheck   # tsc --noEmit
+pnpm run lint        # biome check
+pnpm run format      # biome check --write
+```
+{%- elif language == 'python' %}
+
+```bash
+uv run pytest               # tests (network tests: uv run pytest -m live)
+uv run mypy                 # type check
+uv run ruff check           # lint
+uv run ruff format          # format
+```
+{%- endif %}
+
+Hooks run format and lint on commit, and typecheck and tests on push. Commit
+messages follow `type(scope): Imperative subject` (see `CLAUDE.md`).

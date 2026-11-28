@@ -1,0 +1,42 @@
+# CI (from Sparky-code/templates; update with `copier update`).
+name: CI
+
+on:
+  push:
+    branches: [{{ default_branch }}]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+{%- if language == 'ts' %}
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
+      - run: pnpm run typecheck
+      - run: pnpm run test
+{%- if shape in ['ts-library', 'react-web', 'next'] %}
+      - run: pnpm run build
+{%- endif %}
+{%- if shape == 'expo' %}
+      - run: pnpm run tokens:check
+{%- endif %}
+{%- elif language == 'python' %}
+      - uses: astral-sh/setup-uv@v10.4.0
+      - run: uv sync --locked
+      - run: uv run ruff format --check
+      - run: uv run ruff check
+      - run: uv run mypy
+      - run: uv run pytest
+{%- endif %}
+      - name: shellcheck
+        run: git ls-files -z '*.sh' | xargs -0 -r shellcheck

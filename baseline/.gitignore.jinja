@@ -1,0 +1,45 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Local data
+data/*
+!data/.gitkeep
+
+# OS and editors
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+{%- if language == 'ts' %}
+
+# Node
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+{%- if shape == 'ts-cli' %}
+src/generated/
+{%- endif %}
+{%- if shape == 'next' %}
+.next/
+next-env.d.ts
+{%- endif %}
+{%- if shape == 'expo' %}
+.expo/
+ios/
+android/
+{%- endif %}
+{%- endif %}
+{%- if language == 'python' %}
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+{%- endif %}

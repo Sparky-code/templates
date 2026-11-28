@@ -1,0 +1,53 @@
+# Git hooks (from Sparky-code/templates; update with `copier update`).
+# Install once per clone: `lefthook install`.
+#   pre-commit: format + lint the staged files (fast)
+#   pre-push:   typecheck + tests
+#   commit-msg: the commit message convention
+
+pre-commit:
+  jobs:
+{%- if language == 'ts' %}
+    - name: biome
+      glob: "*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,json,jsonc,css}"
+      run: pnpm exec biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+      stage_fixed: true
+{%- if shape in ['expo', 'next'] %}
+    - name: eslint
+      glob: "*.{js,jsx,ts,tsx}"
+      run: pnpm exec eslint --no-warn-ignored {staged_files}
+{%- endif %}
+{%- elif language == 'python' %}
+    - name: ruff format
+      glob: "*.py"
+      run: uv run ruff format {staged_files}
+      stage_fixed: true
+    - name: ruff check
+      glob: "*.py"
+      run: uv run ruff check --fix {staged_files}
+      stage_fixed: true
+{%- endif %}
+    - name: shellcheck
+      glob: "*.sh"
+      run: shellcheck {staged_files}
+{%- if language != 'none' %}
+
+pre-push:
+  parallel: true
+  jobs:
+{%- if language == 'ts' %}
+    - name: typecheck
+      run: pnpm run typecheck
+    - name: test
+      run: pnpm run test
+{%- else %}
+    - name: mypy
+      run: uv run mypy
+    - name: pytest
+      run: uv run pytest
+{%- endif %}
+{%- endif %}
+
+commit-msg:
+  scripts:
+    "check-message.sh":
+      runner: bash

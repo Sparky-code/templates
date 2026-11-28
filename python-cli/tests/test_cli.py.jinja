@@ -1,0 +1,29 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+from typer.testing import CliRunner
+
+from {{ package_name }}.cli import app
+
+runner = CliRunner()
+
+
+@pytest.fixture(autouse=True)
+def isolated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("{{ package_name | upper }}_DB", str(tmp_path / "app.db"))
+    monkeypatch.delenv("NTFY_URL", raising=False)
+
+
+def test_dry_run_then_status() -> None:
+    result = runner.invoke(app, ["run", "--dry-run", "--max", "5"])
+    assert result.exit_code == 0, result.output
+    assert "would process up to 5 items" in result.output
+    status = runner.invoke(app, ["status"])
+    assert "ok (dry run)" in status.output
+
+
+def test_rejects_a_zero_cap() -> None:
+    assert runner.invoke(app, ["run", "--max", "0"]).exit_code != 0

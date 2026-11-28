@@ -39,6 +39,4 @@ jobs:
       - run: uv run pytest
 {%- endif %}
       - name: shellcheck
-        run: |
-          files=$(git ls-files '*.sh')
-          if [ -n "$files" ]; then shellcheck $files; fi
+        run: git ls-files -z '*.sh' | xargs -0 -r shellcheck

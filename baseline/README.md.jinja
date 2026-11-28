@@ -85,10 +85,21 @@ Describe how to run it.
 {%- if is_job and shape in ['ts-cli', 'python-cli'] %}
 
 ### Schedule
-
+{% if schedule == 'actions' %}
+`.github/workflows/scheduled.yml` runs the job daily on GitHub Actions (edit
+the cron line to change the time). Each run restores the SQLite database from
+the `state` branch and saves it back afterwards (`ops/state.sh`), so the state
+is as public as the repo. Run it by hand from the Actions tab (Run workflow);
+manual runs are dry runs unless you untick the box. Put settings in the repo's
+Actions secrets and variables and map them in the workflow's `env`. GitHub
+emails you when a run fails, and so does ntfy if the `NTFY_URL` secret is set.
+GitHub pauses schedules in public repos after 60 days without activity; the
+state commits count as activity.
+{%- else %}
 `ops/launchd/install.sh` installs a launchd agent that runs the job daily
 (edit the plist to change the time). Logs go to `~/Library/Logs/{{ project_name }}/`.
 If `NTFY_URL` is set, a failed run sends a push notification.
+{%- endif %}
 {%- endif %}
 
 ## Development

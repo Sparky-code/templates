@@ -45,7 +45,9 @@
 {%- if uses_claude %}
 - `src/claude.ts` the only place that calls Claude (via the Claude CLI)
 {%- endif %}
-- `ops/launchd/` schedule
+{%- if is_job %}
+- {% if is_job %}{% if schedule == 'actions' %}`.github/workflows/scheduled.yml` schedule · `ops/state.sh` state branch{% else %}`ops/launchd/` schedule{% endif %}{% endif %}
+{%- endif %}
 {%- elif shape == 'python-cli' %}
 
 - `src/{{ package_name }}/cli.py` commands (Typer) · `job.py` run lock, run record, failure alert
@@ -53,7 +55,7 @@
 {%- if uses_claude %}
 - `claude.py` the only place that calls Claude (via the Claude CLI)
 {%- endif %}
-- `tests/` pytest · `ops/launchd/` schedule
+- `tests/` pytest{% if is_job %} · {% if schedule == 'actions' %}`.github/workflows/scheduled.yml` schedule · `ops/state.sh` state branch{% else %}`ops/launchd/` schedule{% endif %}{% endif %}
 {%- elif shape == 'python-service' %}
 
 - `src/{{ package_name }}/main.py` FastAPI app · `settings.py` env settings · `db.py` engine and sessions · `models.py` tables
@@ -92,6 +94,9 @@ Describe the main folders here.
 {%- endif %}
 {%- if is_job and shape in ['ts-cli', 'python-cli'] %}
 - Jobs are safe to re-run, hold the run lock, honour `--dry-run` and the per-run cap for anything that posts or sends, record each run, and exit non-zero on failure.
+{%- if schedule == 'actions' %}
+- The scheduled run keeps its SQLite state on the `state` branch, which is public with the repo: keep the state small and free of secrets. Don't also schedule it elsewhere; two runners would each post from their own state.
+{%- endif %}
 {%- endif %}
 {%- if uses_claude %}
 - Claude is only called through the Claude CLI wrapper, never an API SDK.

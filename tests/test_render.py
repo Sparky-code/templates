@@ -83,6 +83,26 @@ def test_optional_parts_follow_the_answers(render) -> None:
     assert "hono" not in (web / "package.json").read_text()
 
 
+@pytest.mark.parametrize("shape", ["ts-cli", "python-cli"])
+def test_actions_schedule_replaces_launchd(render, shape: str) -> None:
+    project = render(shape, name="cloud-job", schedule="actions")
+    assert not (project / "ops/launchd").exists()
+    assert (project / "ops/state.sh").stat().st_mode & 0o111
+    assert (project / "ops/state.sh").read_text() == (ROOT / "shared/ops/state.sh").read_text()
+    workflow = yaml.safe_load((project / ".github/workflows/scheduled.yml").read_text())
+    assert workflow[True]["schedule"][0]["cron"]
+    steps = workflow["jobs"]["run"]["steps"]
+    run = next(s for s in steps if s.get("name") == "Run")["run"]
+    assert ("uv run cloud-job run" if shape == "python-cli" else "pnpm start run") in run
+    save = next(s for s in steps if s.get("name") == "Save state")
+    assert "steps.restore.outcome == 'success'" in save["if"]
+    assert "state branch" in (project / "CLAUDE.md").read_text()
+    assert "GitHub Actions" in (project / "README.md").read_text()
+    launchd = render(shape, name="mac-job")
+    assert (launchd / "ops/launchd").is_dir()
+    assert not (launchd / ".github/workflows/scheduled.yml").exists()
+
+
 def test_ui_shapes_get_the_design_tokens(render) -> None:
     shared = (ROOT / "shared/tokens.css").read_text()
     assert (render("react-web", name="w").joinpath("src/styles/tokens.css")).read_text() == shared
@@ -104,6 +124,7 @@ def test_shellcheck_clean() -> None:
         ROOT / "bin/new-project",
         ROOT / "baseline/.lefthook/commit-msg/check-message.sh",
         ROOT / "shared/fake-claude.sh",
+        ROOT / "shared/ops/state.sh",
     ]
     subprocess.run(["shellcheck", *map(str, scripts)], check=True)
 

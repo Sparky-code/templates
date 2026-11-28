@@ -9,8 +9,8 @@ existing projects can pull in later improvements with `copier update`.
 | Shape | What you get |
 |---|---|
 | `ts-library` | TypeScript library: ESM, subpath exports, no runtime dependencies, tsc build, Vitest, vendor script, CHANGELOG |
-| `ts-cli` | TypeScript CLI or scheduled job: commander, Node runs the `.ts` source directly, Prisma on SQLite (libsql/Turso), job runner (lock, run records, dry run, caps, ntfy alert), launchd schedule, optional Claude CLI wrapper |
-| `python-cli` | Python CLI or scheduled job: uv, Typer, sqlite3 with numbered migrations, the same job runner, launchd schedule, optional Claude CLI wrapper |
+| `ts-cli` | TypeScript CLI or scheduled job: commander, Node runs the `.ts` source directly, Prisma on SQLite (libsql/Turso), job runner (lock, run records, dry run, caps, ntfy alert), schedule on launchd or GitHub Actions (`--data schedule=actions`; SQLite state kept on a `state` branch), optional Claude CLI wrapper |
+| `python-cli` | Python CLI or scheduled job: uv, Typer, sqlite3 with numbered migrations, the same job runner, schedule on launchd or GitHub Actions (`--data schedule=actions`; SQLite state kept on a `state` branch), optional Claude CLI wrapper |
 | `python-service` | Python HTTP service: FastAPI, pydantic-settings, SQLAlchemy 2 + Alembic on Postgres, compose for local Postgres, Dockerfile |
 | `react-web` | React web app: Vite, Tailwind v4, shadcn/ui on Radix, design tokens, optional Hono API with zod validation and a typed client |
 | `expo`, `next` | Start from the official generator (`create-expo-app`, `create-next-app`), then apply the baseline |
@@ -91,7 +91,7 @@ uv run pytest -m slow      # generate, install and check every shape (minutes)
 
 Layout: `copier.yml` holds the questions; `baseline/` and each shape directory
 are the templates; `shared/` holds files included by several templates
-(design tokens, Biome config, Claude CLI wrapper, launchd files).
+(design tokens, Biome config, Claude CLI wrapper, launchd and Actions schedule files).
 
 Release by tagging (`v0.2.0`); `copier update` moves projects to the latest tag.
 

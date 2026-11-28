@@ -104,6 +104,15 @@ with_api:
 
 is_job:
   type: bool
-  help: Is it a scheduled job (adds the run lock, launchd plist and failure alerts)?
+  help: Is it a scheduled job (adds the run lock, run records, failure alerts and a schedule)?
   default: true
   when: "{{ shape in ['ts-cli', 'python-cli'] }}"
+
+schedule:
+  type: str
+  help: Where the job runs on a schedule
+  choices:
+    launchd on this Mac: launchd
+    GitHub Actions (state on a git branch; small, public state only): actions
+  default: launchd
+  when: "{{ shape in ['ts-cli', 'python-cli'] and is_job }}"

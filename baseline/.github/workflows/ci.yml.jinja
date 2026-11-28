@@ -3,7 +3,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [{{ default_branch }}]
   pull_request:
 
 permissions:

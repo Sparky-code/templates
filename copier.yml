@@ -71,6 +71,12 @@ license:
     None (private, all rights reserved): UNLICENSED
   default: "{{ 'MIT' if shape == 'ts-library' else 'UNLICENSED' }}"
 
+default_branch:
+  type: str
+  help: Default git branch (CI runs on pushes to it); older repos may use master
+  default: main
+  when: "{{ layer == 'baseline' }}"
+
 language:
   type: str
   help: Main language (drives hooks and CI)

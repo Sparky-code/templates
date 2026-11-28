@@ -56,6 +56,21 @@ def test_version_pins_follow_the_language(render) -> None:
     assert not (other / ".nvmrc").exists() and not (other / ".python-version").exists()
 
 
+def test_ci_runs_on_the_default_branch(render) -> None:
+    def push_branches(project: Path) -> list[str]:
+        ci = yaml.safe_load((project / ".github/workflows/ci.yml").read_text())
+        return ci[True]["push"]["branches"]  # PyYAML reads the `on:` key as True
+
+    assert push_branches(render("python-cli", name="new-repo")) == ["main"]
+    assert push_branches(render("python-cli", name="old-repo", default_branch="master")) == [
+        "master"
+    ]
+    answers = yaml.safe_load(
+        (render("ts-cli", name="x") / ".copier-answers.baseline.yml").read_text()
+    )
+    assert answers["default_branch"] == "main"
+
+
 def test_optional_parts_follow_the_answers(render) -> None:
     plain = render("python-cli", name="plain-tool", uses_claude=False, is_job=False)
     assert not (plain / "src/plain_tool/claude.py").exists()

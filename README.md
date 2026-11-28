@@ -65,8 +65,19 @@ terminal it stops instead):
 
 ```bash
 cd existing-project && git switch -c baseline
-uvx copier copy gh:Sparky-code/templates . --data layer=baseline --data shape=<shape> -a .copier-answers.baseline.yml
+uvx copier copy gh:Sparky-code/templates . --data layer=baseline --data shape=<shape> \
+  --data default_branch="$(git symbolic-ref --short refs/remotes/origin/HEAD | cut -d/ -f2)" \
+  -a .copier-answers.baseline.yml
 ```
+
+Overwriting replaces the project's file outright, with no merge. Before
+committing, diff every replaced file against the previous commit and carry
+over what the project needs, especially:
+
+- `.gitignore`: project-specific ignores, above all any that keep credentials
+  or key files out of git;
+- `.env.example`: the project's own settings;
+- `README.md` and `CLAUDE.md`: the project's own content.
 
 Then move its tooling to the standard one layer per commit.
 
